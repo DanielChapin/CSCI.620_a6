@@ -47,5 +47,7 @@ CREATE TABLE
     name VARCHAR(128),
     birthyear INTEGER,
     deathyear INTEGER,
+    birthyear_s FLOAT,
+    deathyear_s FLOAT,
     PRIMARY KEY (id)
   );

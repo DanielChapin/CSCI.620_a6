@@ -8,6 +8,7 @@ from typing import Any, Callable
 class MainArgs:
     load: bool = True
     init: bool = True
+    scale: bool = True
     analyze: bool = True
     cluster: bool = True
 
@@ -21,6 +22,8 @@ def parser() -> ArgumentParser:
                    help="Don't drop and re-add tables.")
     p.add_argument('--no-analyze', dest='analyze', action='store_false',
                    help="Dont't perform analysis of dataset.")
+    p.add_argument('--no-scale', dest='scale', action='store_false',
+                   help="Don't perform scaling on dataset.")
     p.add_argument('--no-cluster', dest='cluster', action='store_false',
                    help="Don't perform clustering.")
 
