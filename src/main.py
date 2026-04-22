@@ -6,11 +6,13 @@ from pandas import DataFrame
 from .migrations import get_queries
 from .args import MainArgs, entrypoint
 from functools import cache
-from .env import IMPORT_CHUNK_SIZE
+from .env import IMPORT_CHUNK_SIZE, K_MEANS_BATCH_ITERATIONS, K_MEANS_BATCH_SIZE
 from tqdm import tqdm
 from sklearn.cluster import MiniBatchKMeans
 from .common import OUT_PATH
 import seaborn as sns
+import matplotlib.pyplot as plt
+from time import time
 
 
 drop_tables = get_queries("*.drop_tables.sql", reverse=True)
@@ -29,7 +31,7 @@ def title_basics_refined():
 
 @cache
 def title_ratings_refined():
-    print("Refining title basics")
+    print("Refining title ratings")
     return title_ratings().dropna()
 
 
@@ -77,10 +79,15 @@ def load_data(cursor: MySQLCursorAbstract):
     print("Inserting raw data...")
 
     def insert_n(n: int) -> str:
+        assert n >= 1
         return "%s, " * (n - 1) + "%s"
 
     def insert_query(table: str, attributes: list[str]) -> str:
         return f"INSERT INTO {table} ({', '.join(attributes)}) VALUES ({insert_n(len(attributes))})"
+
+    def dropna_query(table: str, attributes: list[str]) -> str:
+        clauses = [f"{attrib} IS NULL" for attrib in attributes]
+        return f"DELETE FROM {table} WHERE {' OR '.join(clauses)}"
 
     # id, name, birthyear, deathyear, birthyear_s, deathyear_s
     query = insert_query("Person", ["id", "name", "birthyear", "deathyear"])
@@ -90,11 +97,11 @@ def load_data(cursor: MySQLCursorAbstract):
 
     query = insert_query("IsKnownFor", ["pid", "mid"])
     print(query)
-    for chunk in tqdm(chunk_df(name_basics()[["nconst", "knownForTitles"]])):
+    for chunk in tqdm(chunk_df(name_basics_refined()[["nconst", "knownForTitles"]])):
         values = list()
         for [pid, known_fors] in chunk.values:
             values += [[pid, known_for_id]
-                       for known_for_id in known_fors.spit(",")]
+                       for known_for_id in known_fors.split(",")]
         cursor.executemany(query, values)
 
     query = insert_query(
@@ -129,6 +136,17 @@ def load_data(cursor: MySQLCursorAbstract):
                        for gname in genres.split(",")]
         cursor.executemany(query, values)
 
+    query = "UPDATE Movie SET rating = %s, totalvotes = %s WHERE id = %s"
+    print(query)
+    chunks = chunk_df(title_ratings_refined()[
+                      ['averageRating', 'numVotes', 'tconst']])
+    for chunk in tqdm(chunks):
+        cursor.executemany(query, chunk.values.tolist())
+
+    query = dropna_query("Movie", ["rating, totalvotes"])
+    print(query)
+    cursor.execute(query)
+
 
 def load_scaled(cursor: MySQLCursorAbstract):
     def minmax_scale_query(table: str, src_attribute: str, dst_attribute: str) -> str:
@@ -148,17 +166,75 @@ def load_scaled(cursor: MySQLCursorAbstract):
 
 
 def kmeans_experiment(name: str, kmeans: MiniBatchKMeans, get_sample: Callable[[], DataFrame]):
-    path = OUT_PATH / name
+    path = OUT_PATH / f"{int(time())}_{name}"
     path.mkdir(parents=True)
 
+    def output_img(clusters, samples: DataFrame, phase):
+        x_col, y_col = samples.columns[:2]
+
+        fig, ax = plt.subplots(figsize=(8, 8))
+
+        sns.scatterplot(
+            data=samples,
+            x=x_col,
+            y=y_col,
+            color="black",
+            s=15,
+            ax=ax,
+        )
+
+        centers_df = DataFrame(clusters, columns=[x_col, y_col])
+        centers_df["cluster"] = range(len(clusters))
+        sns.scatterplot(
+            data=centers_df,
+            x=x_col,
+            y=y_col,
+            hue="cluster",
+            palette="tab10",
+            s=180,
+            edgecolor="white",
+            linewidth=1.2,
+            zorder=10,
+            ax=ax
+        )
+
+        fig.tight_layout()
+        fig.savefig(path / f"{phase}.jpg", dpi=300)
+        plt.close(fig)
+
     inertias = list()
+    for iteration in range(K_MEANS_BATCH_ITERATIONS):
+        sample = get_sample()
+        kmeans.partial_fit(sample)
+        inertias.append(kmeans.inertia_)
+        output_img(kmeans.cluster_centers_, sample, iteration)
+
+    # Graph ineratia values
+    iterations = range(1, len(inertias) + 1)
+
+    fig, ax = plt.subplots(figsize=(8, 8))
+
+    ax.plot(iterations, inertias, marker="o", linewidth=2)
+
+    ax.set_xlabel("Iteration")
+    ax.set_ylabel("Inertia")
+
+    fig.tight_layout()
+    fig.savefig(path / "inertia.jpg", dpi=300)
+    plt.close(fig)
 
 
-def data_clustering(conn: MySQLCursorAbstract):
+def data_clustering(cursor: MySQLCursorAbstract):
     print("Movie runtime + rating clusters")
-    name = "movie_runtime_rating"
     kmeans = MiniBatchKMeans(n_clusters=4, init=DataFrame(
         [[0.25, 0.25], [0.75, 0.25], [0.25, 0.75], [0.75, 0.75]]))
+
+    def get_data() -> DataFrame:
+        query = f"SELECT runtime_s, rating_s FROM Movie ORDER BY RAND() LIMIT {K_MEANS_BATCH_SIZE}"
+        cursor.execute(query)
+        return DataFrame(cursor.fetchall())
+
+    kmeans_experiment("movie_runtime_rating", kmeans, get_data)
 
 
 def main(args: MainArgs):

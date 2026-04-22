@@ -2,6 +2,8 @@
 
 Author: Daniel Chapin (dsc4984)
 
+Reference the report for more information.
+
 ## Usage Instructions
 
 Either set up Python virtual environment manually or run `make` and one will be generated for you in `.venv`.

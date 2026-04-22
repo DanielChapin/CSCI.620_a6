@@ -15,6 +15,6 @@ $(VENV):
 requirements.txt:
 	$(USE_VENV) && pip freeze > requirements.txt
 
-out/a2-dsc4984.zip: Makefile src/*.py src/sql/*.sql .env.sample get_dataset.sh README.md requirements.txt
+out/a6-dsc4984.zip: Makefile src/*.py src/sql/*.sql .env.sample README.md requirements.txt report/dsc4984_a6.pdf
 	mkdir -p out
 	zip $@ $^

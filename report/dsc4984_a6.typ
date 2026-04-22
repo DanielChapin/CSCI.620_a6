@@ -17,9 +17,8 @@ Reference `README.md` for instructions on setup and running.
 
 = Feature Selection
 
-These are the features selected for clustering/analysis.
-- *Movie.rating + Movie.runtime* - try to cluster movies into categories of long + high rated (best), short + high rated (better), short + low rated (okay), and long + low rated (worst).
-- *Person.birthyear* - cluster people into eras.
+These are the features selected for clustering/analysis. \
+*Movie.rating + Movie.runtime* - try to cluster movies into categories of long + high rated (best), short + high rated (better), short + low rated (okay), and long + low rated (worst).
 
 = Data Analysis
 
@@ -71,3 +70,30 @@ min     1.000000e+00  5.000000e+00
 max     1.000000e+01  3.144126e+06
 ```
 The description makes the ratings seem pretty reasonable.
+
+= Clustering Results
+
+Here are the following minibatch cluster centers (and batch datapoints).
+
+#set image(width: 33%)
+
+#align(center)[
+  #image("out/1776829450_movie_runtime_rating/0.jpg")
+  #image("out/1776829450_movie_runtime_rating/1.jpg")
+  #image("out/1776829450_movie_runtime_rating/2.jpg")
+  #image("out/1776829450_movie_runtime_rating/3.jpg")
+  #image("out/1776829450_movie_runtime_rating/4.jpg")
+  #image("out/1776829450_movie_runtime_rating/5.jpg")
+  #image("out/1776829450_movie_runtime_rating/6.jpg")
+  #image("out/1776829450_movie_runtime_rating/7.jpg")
+  #image("out/1776829450_movie_runtime_rating/8.jpg")
+  #image("out/1776829450_movie_runtime_rating/9.jpg")
+]
+
+And finally the graph of inertia:
+#align(center)[
+  #image("out/1776829450_movie_runtime_rating/inertia.jpg")
+]
+
+Evidently, the data is substantially skewed to one side and is not effectively clusterable.
+Regardless, the inertia does in fact go down with several iterations of minibatch.
