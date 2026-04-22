@@ -48,7 +48,7 @@ class CSVIter:
 def read_std(filepath, *args, **kwargs) -> DataFrame:
     # Truly incredible that this function can return a DataFrame
     # without the type signature indicating that
-    return cast(DataFrame, read_csv(filepath, sep=r'\t|\\t', compression='gzip', na_values=[r"\N"], on_bad_lines='skip', engine='python', keep_default_na=False, *args, **kwargs))
+    return cast(DataFrame, read_csv(filepath, sep='\t', compression='gzip', na_values=["\\N"], on_bad_lines='skip', engine='python', keep_default_na=False, *args, **kwargs))
     # return read_csv(filepath, sep='\t', compression='gzip', na_values=[r"\N"], on_bad_lines='skip', keep_default_na=False, *args, **kwargs)
 
 
