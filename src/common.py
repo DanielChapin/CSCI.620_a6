@@ -4,6 +4,7 @@ PROJECT_ROOT = Path(__file__).parent.parent
 
 # Project resources
 RES_PATH = PROJECT_ROOT / "res"
+OUT_PATH = PROJECT_ROOT / "out"
 TITLE_BASICS_PATH = RES_PATH / "title.basics.tsv.gz"
 TITLE_RATINGS_PATH = RES_PATH / "title.ratings.tsv.gz"
 NAME_BASICS_PATH = RES_PATH / "name.basics.tsv.gz"

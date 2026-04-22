@@ -1,13 +1,16 @@
 from .db_utils import connect
 from .dataset import title_basics, title_ratings, name_basics
 from mysql.connector.abstracts import MySQLCursorAbstract
-from typing import cast
+from typing import Callable
 from pandas import DataFrame
 from .migrations import get_queries
 from .args import MainArgs, entrypoint
 from functools import cache
 from .env import IMPORT_CHUNK_SIZE
 from tqdm import tqdm
+from sklearn.cluster import MiniBatchKMeans
+from .common import OUT_PATH
+import seaborn as sns
 
 
 drop_tables = get_queries("*.drop_tables.sql", reverse=True)
@@ -144,35 +147,43 @@ def load_scaled(cursor: MySQLCursorAbstract):
     scale("Movie", "totalvotes", "totalvotes_s")
 
 
-def data_clustering():
-    pass
+def kmeans_experiment(name: str, kmeans: MiniBatchKMeans, get_sample: Callable[[], DataFrame]):
+    path = OUT_PATH / name
+    path.mkdir(parents=True)
+
+    inertias = list()
+
+
+def data_clustering(conn: MySQLCursorAbstract):
+    print("Movie runtime + rating clusters")
+    name = "movie_runtime_rating"
+    kmeans = MiniBatchKMeans(n_clusters=4, init=DataFrame(
+        [[0.25, 0.25], [0.75, 0.25], [0.25, 0.75], [0.75, 0.75]]))
 
 
 def main(args: MainArgs):
+    def with_conn(fn):
+        with connect() as conn, conn.cursor() as cursor:
+            conn.start_transaction()
+            res = fn(cursor)
+            conn.commit()
+            return res
+
     if args.analyze:
         print("== Data Analysis ==")
         data_analysis()
     if args.init:
         print("== Init Tables ==")
-        with connect() as conn, conn.cursor() as cursor:
-            conn.start_transaction()
-            init_tables(cursor)
-            conn.commit()
+        with_conn(init_tables)
     if args.load:
         print("== Load Data into DB ==")
-        with connect() as conn, conn.cursor() as cursor:
-            conn.start_transaction()
-            load_data(cursor)
-            conn.commit()
+        with_conn(load_data)
     if args.scale:
         print("== Scaling MySQL Data ==")
-        with connect() as conn, conn.cursor() as cursor:
-            conn.start_transaction()
-            load_scaled(cursor)
-            conn.commit()
+        with_conn(load_scaled)
     if args.cluster:
         print("== Data Clustering ==")
-        data_clustering()
+        with_conn(data_clustering)
 
 
 if __name__ == "__main__":
